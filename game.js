@@ -53,6 +53,119 @@ const restartBtn = document.getElementById('restart-btn');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let specialsAwarded, specialPending;
+let combo, maxComboThisGame;
+
+const RECORDS_KEY = 'tetris.records';
+const NAME_KEY = 'tetris.lastName';
+const MAX_TOP = 5;
+const startScreen = document.getElementById('start-screen');
+const playBtn = document.getElementById('play-btn');
+const resetBtn = document.getElementById('reset-records-btn');
+const gameoverRecords = document.getElementById('gameover-records');
+const newRecordEl = document.getElementById('new-record');
+const nameForm = document.getElementById('name-form');
+const nameInput = document.getElementById('name-input');
+const saveBtn = document.getElementById('save-btn');
+const gameoverList = document.getElementById('gameover-list');
+let savedIndex = -1;
+
+function loadRecords() {
+  const empty = { top: [], bestCombo: 0, maxLines: 0 };
+  try {
+    const r = JSON.parse(localStorage.getItem(RECORDS_KEY));
+    if (!r || !Array.isArray(r.top)) return empty;
+    return { top: r.top.slice(0, MAX_TOP), bestCombo: r.bestCombo || 0, maxLines: r.maxLines || 0 };
+  } catch (e) {
+    return empty;
+  }
+}
+
+function saveRecords(rec) {
+  try { localStorage.setItem(RECORDS_KEY, JSON.stringify(rec)); } catch (e) { /* sin almacenamiento */ }
+}
+
+function getLastName() {
+  try { return localStorage.getItem(NAME_KEY) || ''; } catch (e) { return ''; }
+}
+
+function qualifiesForTop(rec, s) {
+  if (s <= 0) return false;
+  return rec.top.length < MAX_TOP || s > rec.top[rec.top.length - 1].score;
+}
+
+// Fills an <ol> with the top list; highlightIdx marks the row to highlight.
+function renderTop(listEl, rec, highlightIdx) {
+  listEl.textContent = '';
+  if (!rec.top.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'Sin récords aún';
+    listEl.appendChild(li);
+    return;
+  }
+  rec.top.forEach((t, i) => {
+    const li = document.createElement('li');
+    if (i === highlightIdx) li.className = 'highlight';
+    li.textContent = `${t.name} — ${t.score.toLocaleString()} (${t.lines} líneas, nivel ${t.level})`;
+    listEl.appendChild(li);
+  });
+}
+
+function renderStats(el, rec) {
+  el.textContent = `Mejor combo: ${rec.bestCombo} · Máx. líneas: ${rec.maxLines}`;
+}
+
+function renderStartScreen() {
+  const rec = loadRecords();
+  renderTop(document.getElementById('start-list'), rec, -1);
+  renderStats(document.getElementById('start-stats'), rec);
+}
+
+// Updates bestCombo/maxLines, and shows the name form if the score enters the top.
+function showGameOverRecords() {
+  const rec = loadRecords();
+  rec.bestCombo = Math.max(rec.bestCombo, maxComboThisGame);
+  rec.maxLines = Math.max(rec.maxLines, lines);
+  saveRecords(rec);
+  savedIndex = -1;
+  const qualifies = qualifiesForTop(rec, score);
+  newRecordEl.classList.toggle('hidden', !qualifies);
+  nameForm.classList.toggle('hidden', !qualifies);
+  if (qualifies) {
+    nameInput.value = getLastName();
+    saveBtn.disabled = false;
+    setTimeout(() => nameInput.focus(), 0);
+  }
+  renderTop(gameoverList, rec, -1);
+  renderStats(document.getElementById('gameover-stats'), rec);
+  gameoverRecords.classList.remove('hidden');
+}
+
+function saveScore() {
+  if (!gameOver || savedIndex >= 0) return;
+  const name = nameInput.value.trim().slice(0, 12) || 'Anónimo';
+  try { localStorage.setItem(NAME_KEY, name); } catch (e) { /* sin almacenamiento */ }
+  const rec = loadRecords();
+  const entry = { name, score, lines, level, date: new Date().toISOString() };
+  let idx = rec.top.findIndex(t => score > t.score);
+  if (idx < 0) idx = rec.top.length;
+  rec.top.splice(idx, 0, entry);
+  rec.top = rec.top.slice(0, MAX_TOP);
+  saveRecords(rec);
+  savedIndex = idx;
+  saveBtn.disabled = true;
+  nameForm.classList.add('hidden');
+  newRecordEl.classList.add('hidden');
+  renderTop(gameoverList, rec, idx < MAX_TOP ? idx : -1);
+}
+
+const pauseMenu = document.getElementById('pause-menu');
+const pmResume = document.getElementById('pm-resume');
+const pmRestart = document.getElementById('pm-restart');
+const pmControlsBtn = document.getElementById('pm-controls-btn');
+const pmControls = document.getElementById('pm-controls');
+const pmStartLevel = document.getElementById('pm-start-level');
+let startLevel = loadStartLevel();
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -148,6 +261,12 @@ function clearLines() {
     }
   }
   if (cleared) {
+    combo++;
+    maxComboThisGame = Math.max(maxComboThisGame, combo);
+  } else {
+    combo = 0;
+  }
+  if (cleared) {
     lines += cleared;
     if (Math.floor(lines / SPECIAL_EVERY_LINES) > specialsAwarded) {
       specialsAwarded++;
@@ -207,15 +326,101 @@ function updateHUD() {
   levelEl.textContent = level;
 }
 
+function fillRounded(context, x, y, w, h, r) {
+  context.beginPath();
+  if (context.roundRect) context.roundRect(x, y, w, h, r);
+  else context.rect(x, y, w, h);
+  context.fill();
+}
+
+const SKINS = {
+  retro: {
+    colors: COLORS,
+    grid: '#22222e',
+    drawBlock(context, x, y, color, size) {
+      context.fillStyle = color;
+      context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+      context.fillStyle = 'rgba(255,255,255,0.12)';
+      context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+    },
+  },
+  neon: {
+    colors: [
+      null, '#00f0ff', '#fff200', '#d500f9', '#39ff14', '#ff1744', '#2979ff',
+      '#ff9100', '#ff2d95', '#9e9e9e', '#ffffff', '#ffe600',
+    ],
+    grid: '#12122a',
+    drawBlock(context, x, y, color, size) {
+      context.shadowColor = color;
+      context.shadowBlur = 12;
+      context.fillStyle = color;
+      context.fillRect(x * size + 3, y * size + 3, size - 6, size - 6);
+      context.shadowBlur = 0;
+      context.shadowColor = 'transparent';
+      context.fillStyle = 'rgba(255,255,255,0.35)';
+      context.fillRect(x * size + 5, y * size + 5, size - 10, 3);
+    },
+  },
+  pastel: {
+    colors: [
+      null, '#a8e6ef', '#fff1b8', '#d9b8ec', '#b8e6c1', '#f5b8b8', '#b8d4f5',
+      '#fcd9b0', '#f7b8d2', '#b0b0b8', '#f4f4f4', '#ffe28a',
+    ],
+    grid: '#e6dff0',
+    drawBlock(context, x, y, color, size) {
+      context.fillStyle = color;
+      fillRounded(context, x * size + 1.5, y * size + 1.5, size - 3, size - 3, size * 0.28);
+      context.fillStyle = 'rgba(255,255,255,0.45)';
+      fillRounded(context, x * size + size * 0.2, y * size + size * 0.16, size * 0.5, size * 0.12, 2);
+    },
+  },
+  pixel: {
+    colors: [
+      null, '#29b6f6', '#fdd835', '#ab47bc', '#66bb6a', '#ef5350', '#5c6bc0',
+      '#ffa726', '#ec407a', '#757575', '#cfd8dc', '#ffc107',
+    ],
+    grid: '#1c1c28',
+    drawBlock(context, x, y, color, size) {
+      const px = x * size + 1, py = y * size + 1, s = size - 2, q = s / 4;
+      context.fillStyle = color;
+      context.fillRect(px, py, s, s);
+      // textura: sub-cuadros claros/oscuros en patron de tablero
+      for (let i = 0; i < 4; i++)
+        for (let j = 0; j < 4; j++) {
+          if ((i + j) % 2) continue;
+          context.fillStyle = (i + j) % 4 === 0 ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.2)';
+          context.fillRect(px + i * q, py + j * q, q, q);
+        }
+      context.strokeStyle = 'rgba(0,0,0,0.55)';
+      context.lineWidth = 1;
+      context.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1);
+    },
+  },
+};
+
+const SKIN_KEY = 'tetris.skin';
+let skin = SKINS.retro;
+
+function loadSkin() {
+  try {
+    const saved = localStorage.getItem(SKIN_KEY);
+    if (saved && SKINS[saved]) return saved;
+  } catch (e) { /* sin storage */ }
+  return 'retro';
+}
+
+function applySkin(name) {
+  if (!SKINS[name]) name = 'retro';
+  skin = SKINS[name];
+  document.body.dataset.skin = name;
+  try { localStorage.setItem(SKIN_KEY, name); } catch (e) { /* sin storage */ }
+  if (board && current && next) { draw(); drawNext(); }
+}
+
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  skin.drawBlock(context, x, y, skin.colors[colorIndex], size);
   const glyph = BLOCK_GLYPHS[colorIndex];
   if (glyph) {
     context.fillStyle = '#1a1a24';
@@ -228,7 +433,7 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
 }
 
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = skin.grid;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -283,21 +488,42 @@ function endGame() {
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlay.classList.remove('hidden');
+  showGameOverRecords();
 }
 
 function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    pauseMenu.classList.add('hidden');
+    pmControls.classList.add('hidden');
+    dropAccum = 0;
     lastTime = performance.now();
-    loop(lastTime);
+    cancelAnimationFrame(animId);
+    animId = requestAnimationFrame(loop);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    pmStartLevel.value = String(startLevel);
+    pauseMenu.classList.remove('hidden');
   }
 }
+
+function loadStartLevel() {
+  try {
+    const v = parseInt(localStorage.getItem('tetris.startLevel'), 10);
+    if (v >= 1 && v <= 10) return v;
+  } catch (e) {}
+  return 1;
+}
+
+pmStartLevel.addEventListener('change', () => {
+  startLevel = parseInt(pmStartLevel.value, 10);
+  try { localStorage.setItem('tetris.startLevel', String(startLevel)); } catch (e) {}
+});
+pmResume.addEventListener('click', togglePause);
+pmRestart.addEventListener('click', () => init());
+pmControlsBtn.addEventListener('click', () => pmControls.classList.toggle('hidden'));
+for (let i = 1; i <= 10; i++) pmStartLevel.add(new Option(i, i));
 
 function loop(ts) {
   const dt = ts - lastTime;
@@ -320,13 +546,18 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  level = startLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  pauseMenu.classList.add('hidden');
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   specialsAwarded = 0;
   specialPending = false;
+  combo = 0;
+  maxComboThisGame = 0;
+  gameoverRecords.classList.add('hidden');
+  startScreen.classList.add('hidden');
   lastTime = performance.now();
   next = randomPiece();
   spawn();
@@ -337,8 +568,14 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
-  if (paused || gameOver) return;
+  if (e.target === skinSelect) return;
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
+  if (paused) {
+    // evita que Space active el botón enfocado del menú
+    if (e.code === 'Space') e.preventDefault();
+    return;
+  }
+  if (gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) current.x--;
@@ -361,6 +598,33 @@ document.addEventListener('keydown', e => {
   updateHUD();
 });
 
-restartBtn.addEventListener('click', init);
+// Firefox dispara el click del botón en keyup de Space
+document.addEventListener('keyup', e => {
+  if (paused && e.code === 'Space') e.preventDefault();
+});
 
-init();
+const skinSelect = document.getElementById('skin-select');
+skinSelect.value = loadSkin();
+applySkin(skinSelect.value);
+skinSelect.addEventListener('change', () => {
+  applySkin(skinSelect.value);
+  skinSelect.blur();
+});
+
+restartBtn.addEventListener('click', init);
+playBtn.addEventListener('click', init);
+saveBtn.addEventListener('click', saveScore);
+nameInput.addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.code === 'Enter') saveScore();
+});
+resetBtn.addEventListener('click', () => {
+  if (!confirm('¿Borrar todos los récords?')) return;
+  try { localStorage.removeItem(RECORDS_KEY); } catch (e) { /* sin almacenamiento */ }
+  renderStartScreen();
+});
+
+// The game starts from the start screen, not on load.
+gameOver = true;
+renderStartScreen();
+startScreen.classList.remove('hidden');
