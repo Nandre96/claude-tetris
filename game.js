@@ -367,7 +367,12 @@ function init() {
 
 document.addEventListener('keydown', e => {
   if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
-  if (paused || gameOver) return;
+  if (paused) {
+    // evita que Space active el botón enfocado del menú
+    if (e.code === 'Space') e.preventDefault();
+    return;
+  }
+  if (gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) current.x--;
@@ -388,6 +393,11 @@ document.addEventListener('keydown', e => {
       break;
   }
   updateHUD();
+});
+
+// Firefox dispara el click del botón en keyup de Space
+document.addEventListener('keyup', e => {
+  if (paused && e.code === 'Space') e.preventDefault();
 });
 
 restartBtn.addEventListener('click', init);
