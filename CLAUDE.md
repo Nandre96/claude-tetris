@@ -21,4 +21,6 @@ Pieces are 4×4 or 3×3 matrices of color indices (`PIECES`); rotation is transp
 
 Scoring: `LINE_SCORES = [0,100,300,500,800]` × `level`; hard drop = 2 pts/row, soft drop = 1 pt/row. Level increases every 10 lines; `dropInterval = max(100, 1000 - (level-1)*90)`.
 
+Special pieces: every `SPECIAL_EVERY_LINES` cleared lines, `spawn()` makes `next` a 1×1 `BOMB` (clears 3×3 on lock, `detonate`) or `TINT` (turns all blocks of the color below into `WILD`, `applyTint`). `WILD` cells let a row clear if gaps ≤ wilds (`isRowComplete`). Glyphs drawn via `BLOCK_GLYPHS` in `drawBlock`.
+
 Tunable constants live at the top of `game.js`: `COLS`, `ROWS`, `BLOCK`, `COLORS`, `LINE_SCORES`, `dropInterval`. Changing `COLS`/`ROWS`/`BLOCK` requires updating the `<canvas id="board">` `width`/`height` in `index.html` to match (`COLS×BLOCK` by `ROWS×BLOCK`).
