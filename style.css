@@ -160,3 +160,34 @@ kbd {
 #restart-btn:hover {
   background: #9bbdff;
 }
+
+/* ---- Temas ---- */
+#skin-select {
+  background: #22223a;
+  color: #aaa;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+body[data-skin='neon'] #board,
+body[data-skin='neon'] #next-canvas {
+  background: #000;
+  border-color: #00f0ff;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.35);
+}
+
+body[data-skin='pastel'] #board,
+body[data-skin='pastel'] #next-canvas {
+  background: #faf6ff;
+  border-color: #d9cfe8;
+}
+
+body[data-skin='pixel'] #board,
+body[data-skin='pixel'] #next-canvas {
+  background: #101018;
+  border-color: #444;
+  border-radius: 0;
+}

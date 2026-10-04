@@ -207,15 +207,101 @@ function updateHUD() {
   levelEl.textContent = level;
 }
 
+function fillRounded(context, x, y, w, h, r) {
+  context.beginPath();
+  if (context.roundRect) context.roundRect(x, y, w, h, r);
+  else context.rect(x, y, w, h);
+  context.fill();
+}
+
+const SKINS = {
+  retro: {
+    colors: COLORS,
+    grid: '#22222e',
+    drawBlock(context, x, y, color, size) {
+      context.fillStyle = color;
+      context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+      context.fillStyle = 'rgba(255,255,255,0.12)';
+      context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+    },
+  },
+  neon: {
+    colors: [
+      null, '#00f0ff', '#fff200', '#d500f9', '#39ff14', '#ff1744', '#2979ff',
+      '#ff9100', '#ff2d95', '#9e9e9e', '#ffffff', '#ffe600',
+    ],
+    grid: '#12122a',
+    drawBlock(context, x, y, color, size) {
+      context.shadowColor = color;
+      context.shadowBlur = 12;
+      context.fillStyle = color;
+      context.fillRect(x * size + 3, y * size + 3, size - 6, size - 6);
+      context.shadowBlur = 0;
+      context.shadowColor = 'transparent';
+      context.fillStyle = 'rgba(255,255,255,0.35)';
+      context.fillRect(x * size + 5, y * size + 5, size - 10, 3);
+    },
+  },
+  pastel: {
+    colors: [
+      null, '#a8e6ef', '#fff1b8', '#d9b8ec', '#b8e6c1', '#f5b8b8', '#b8d4f5',
+      '#fcd9b0', '#f7b8d2', '#b0b0b8', '#f4f4f4', '#ffe28a',
+    ],
+    grid: '#e6dff0',
+    drawBlock(context, x, y, color, size) {
+      context.fillStyle = color;
+      fillRounded(context, x * size + 1.5, y * size + 1.5, size - 3, size - 3, size * 0.28);
+      context.fillStyle = 'rgba(255,255,255,0.45)';
+      fillRounded(context, x * size + size * 0.2, y * size + size * 0.16, size * 0.5, size * 0.12, 2);
+    },
+  },
+  pixel: {
+    colors: [
+      null, '#29b6f6', '#fdd835', '#ab47bc', '#66bb6a', '#ef5350', '#5c6bc0',
+      '#ffa726', '#ec407a', '#757575', '#cfd8dc', '#ffc107',
+    ],
+    grid: '#1c1c28',
+    drawBlock(context, x, y, color, size) {
+      const px = x * size + 1, py = y * size + 1, s = size - 2, q = s / 4;
+      context.fillStyle = color;
+      context.fillRect(px, py, s, s);
+      // textura: sub-cuadros claros/oscuros en patron de tablero
+      for (let i = 0; i < 4; i++)
+        for (let j = 0; j < 4; j++) {
+          if ((i + j) % 2) continue;
+          context.fillStyle = (i + j) % 4 === 0 ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.2)';
+          context.fillRect(px + i * q, py + j * q, q, q);
+        }
+      context.strokeStyle = 'rgba(0,0,0,0.55)';
+      context.lineWidth = 1;
+      context.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1);
+    },
+  },
+};
+
+const SKIN_KEY = 'tetris.skin';
+let skin = SKINS.retro;
+
+function loadSkin() {
+  try {
+    const saved = localStorage.getItem(SKIN_KEY);
+    if (saved && SKINS[saved]) return saved;
+  } catch (e) { /* sin storage */ }
+  return 'retro';
+}
+
+function applySkin(name) {
+  if (!SKINS[name]) name = 'retro';
+  skin = SKINS[name];
+  document.body.dataset.skin = name;
+  try { localStorage.setItem(SKIN_KEY, name); } catch (e) { /* sin storage */ }
+  if (board && current && next) { draw(); drawNext(); }
+}
+
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  skin.drawBlock(context, x, y, skin.colors[colorIndex], size);
   const glyph = BLOCK_GLYPHS[colorIndex];
   if (glyph) {
     context.fillStyle = '#1a1a24';
@@ -228,7 +314,7 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
 }
 
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = skin.grid;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -337,6 +423,7 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
+  if (e.target === skinSelect) return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
@@ -362,5 +449,13 @@ document.addEventListener('keydown', e => {
 });
 
 restartBtn.addEventListener('click', init);
+
+const skinSelect = document.getElementById('skin-select');
+skinSelect.value = loadSkin();
+applySkin(skinSelect.value);
+skinSelect.addEventListener('change', () => {
+  applySkin(skinSelect.value);
+  skinSelect.blur();
+});
 
 init();
