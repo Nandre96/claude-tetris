@@ -122,6 +122,60 @@ kbd {
   display: none;
 }
 
+/* ---- Pause menu ---- */
+.pause-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: #e57373;
+}
+
+.pm-btn {
+  width: 180px;
+  background: #7aa2f7;
+  color: #0f0f17;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pm-btn:hover { background: #9db8f9; }
+
+.pm-level {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.pm-level select {
+  background: #22223a;
+  color: #ddd;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+#pm-controls {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+  color: #aaa;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+#pm-controls.hidden {
+  display: none;
+}
+
 .overlay-box {
   text-align: center;
   display: flex;

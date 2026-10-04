@@ -51,6 +51,25 @@
         <button id="restart-btn">Reiniciar</button>
       </div>
     </div>
+
+    <div id="pause-menu" class="overlay hidden">
+      <div class="overlay-box">
+        <p class="pause-title">PAUSA</p>
+        <button id="pm-resume" class="pm-btn">Reanudar</button>
+        <button id="pm-restart" class="pm-btn">Reiniciar</button>
+        <label class="pm-level">Nivel inicial
+          <select id="pm-start-level"></select>
+        </label>
+        <button id="pm-controls-btn" class="pm-btn">Ver controles</button>
+        <ul id="pm-controls" class="hidden">
+          <li><kbd>←</kbd><kbd>→</kbd> mover</li>
+          <li><kbd>↑</kbd> / <kbd>X</kbd> rotar</li>
+          <li><kbd>↓</kbd> bajar</li>
+          <li><kbd>Space</kbd> caída</li>
+          <li><kbd>P</kbd> / <kbd>Esc</kbd> pausa</li>
+        </ul>
+      </div>
+    </div>
   </div>
 
   <script src="game.js"></script>

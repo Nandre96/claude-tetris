@@ -23,4 +23,6 @@ Scoring: `LINE_SCORES = [0,100,300,500,800]` × `level`; hard drop = 2 pts/row, 
 
 Special pieces: every `SPECIAL_EVERY_LINES` cleared lines, `spawn()` makes `next` a 1×1 `BOMB` (clears 3×3 on lock, `detonate`) or `TINT` (turns all blocks of the color below into `WILD`, `applyTint`). `WILD` cells let a row clear if gaps ≤ wilds (`isRowComplete`). Glyphs drawn via `BLOCK_GLYPHS` in `drawBlock`.
 
+Pause menu: `P`/`Escape` toggle `#pause-menu` (separate from `#overlay`) with Reanudar / Reiniciar / Ver controles / Nivel inicial (1–10, `startLevel`, persisted in `localStorage` `tetris.startLevel`, used by `init()`). Keydown ignores all but P/Escape while paused.
+
 Tunable constants live at the top of `game.js`: `COLS`, `ROWS`, `BLOCK`, `COLORS`, `LINE_SCORES`, `dropInterval`. Changing `COLS`/`ROWS`/`BLOCK` requires updating the `<canvas id="board">` `width`/`height` in `index.html` to match (`COLS×BLOCK` by `ROWS×BLOCK`).
