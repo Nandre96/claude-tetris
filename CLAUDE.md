@@ -25,4 +25,6 @@ Special pieces: every `SPECIAL_EVERY_LINES` cleared lines, `spawn()` makes `next
 
 Records: `localStorage` `tetris.records` = `{top:[{name,score,lines,level,date}] (max 5), bestCombo, maxLines}`, last name in `tetris.lastName`. Game starts from `#start-screen` (Jugar → `init()`), not on load; `endGame()` calls `showGameOverRecords()` (name form → `saveScore()` if score qualifies). `combo` = consecutive locks clearing lines (tracked in `clearLines()`).
 
+Pause menu: `P`/`Escape` toggle `#pause-menu` (separate from `#overlay`) with Reanudar / Reiniciar / Ver controles / Nivel inicial (1–10, `startLevel`, persisted in `localStorage` `tetris.startLevel`, used by `init()`). Keydown ignores all but P/Escape while paused.
+
 Tunable constants live at the top of `game.js`: `COLS`, `ROWS`, `BLOCK`, `COLORS`, `LINE_SCORES`, `dropInterval`. Changing `COLS`/`ROWS`/`BLOCK` requires updating the `<canvas id="board">` `width`/`height` in `index.html` to match (`COLS×BLOCK` by `ROWS×BLOCK`).

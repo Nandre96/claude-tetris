@@ -159,6 +159,14 @@ function saveScore() {
   renderTop(gameoverList, rec, idx < MAX_TOP ? idx : -1);
 }
 
+const pauseMenu = document.getElementById('pause-menu');
+const pmResume = document.getElementById('pm-resume');
+const pmRestart = document.getElementById('pm-restart');
+const pmControlsBtn = document.getElementById('pm-controls-btn');
+const pmControls = document.getElementById('pm-controls');
+const pmStartLevel = document.getElementById('pm-start-level');
+let startLevel = loadStartLevel();
+
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
 }
@@ -401,15 +409,35 @@ function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    pauseMenu.classList.add('hidden');
+    pmControls.classList.add('hidden');
+    dropAccum = 0;
     lastTime = performance.now();
-    loop(lastTime);
+    cancelAnimationFrame(animId);
+    animId = requestAnimationFrame(loop);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    pmStartLevel.value = String(startLevel);
+    pauseMenu.classList.remove('hidden');
   }
 }
+
+function loadStartLevel() {
+  try {
+    const v = parseInt(localStorage.getItem('tetris.startLevel'), 10);
+    if (v >= 1 && v <= 10) return v;
+  } catch (e) {}
+  return 1;
+}
+
+pmStartLevel.addEventListener('change', () => {
+  startLevel = parseInt(pmStartLevel.value, 10);
+  try { localStorage.setItem('tetris.startLevel', String(startLevel)); } catch (e) {}
+});
+pmResume.addEventListener('click', togglePause);
+pmRestart.addEventListener('click', () => init());
+pmControlsBtn.addEventListener('click', () => pmControls.classList.toggle('hidden'));
+for (let i = 1; i <= 10; i++) pmStartLevel.add(new Option(i, i));
 
 function loop(ts) {
   const dt = ts - lastTime;
@@ -432,10 +460,11 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  level = startLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  pauseMenu.classList.add('hidden');
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   specialsAwarded = 0;
   specialPending = false;
@@ -453,8 +482,13 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
-  if (paused || gameOver) return;
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
+  if (paused) {
+    // evita que Space active el botón enfocado del menú
+    if (e.code === 'Space') e.preventDefault();
+    return;
+  }
+  if (gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) current.x--;
@@ -475,6 +509,11 @@ document.addEventListener('keydown', e => {
       break;
   }
   updateHUD();
+});
+
+// Firefox dispara el click del botón en keyup de Space
+document.addEventListener('keyup', e => {
+  if (paused && e.code === 'Space') e.preventDefault();
 });
 
 restartBtn.addEventListener('click', init);
